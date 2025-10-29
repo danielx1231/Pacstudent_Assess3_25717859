@@ -18,11 +18,15 @@ public class PacStudentController : MonoBehaviour
     public DustParticleEffect dustEffect;
     
     [Header("Grid System")]
-    public LayerMask wallLayerMask = 1;
+    public LayerMask wallLayerMask = -1;
     public LayerMask pelletLayerMask = 1;
+    public float collisionCheckRadius = 0.4f;
     
     [Header("Game Integration")]
     public GameManager gameManager;
+    
+    [Header("Debug")]
+    public bool showDebugGizmos = true;
     
     // Movement state
     private Vector2 lastInput;
@@ -50,6 +54,10 @@ public class PacStudentController : MonoBehaviour
         currentGridPos = WorldToGrid(transform.position);
         targetGridPos = currentGridPos;
         
+        // Snap to grid center to avoid floating point issues
+        Vector2 snapped = GridToWorld(currentGridPos);
+        transform.position = snapped;
+        
         // Set initial facing direction (right)
         if (animator != null)
         {
@@ -58,6 +66,10 @@ public class PacStudentController : MonoBehaviour
         
         // Initialize level map (placeholder - should be set by LevelGenerator)
         InitializeLevelMap();
+        
+        // Debug info
+        Debug.Log($"PacStudent initialized at grid position: {currentGridPos}");
+        Debug.Log($"Wall Layer Mask: {wallLayerMask.value}");
     }
     
     void Update()
@@ -95,6 +107,7 @@ public class PacStudentController : MonoBehaviour
         if (input != Vector2.zero)
         {
             lastInput = input;
+            Debug.Log($"Input received: {input}");
         }
     }
     
@@ -107,8 +120,13 @@ public class PacStudentController : MonoBehaviour
             if (IsWalkable(nextGridPos))
             {
                 currentInput = lastInput;
+                Debug.Log($"Moving with lastInput: {lastInput} to {nextGridPos}");
                 StartMove(nextGridPos);
                 return;
+            }
+            else
+            {
+                Debug.Log($"Cannot move with lastInput: {lastInput} to {nextGridPos} - blocked");
             }
         }
         
@@ -118,8 +136,13 @@ public class PacStudentController : MonoBehaviour
             Vector2Int nextGridPos = currentGridPos + Vector2Int.RoundToInt(currentInput);
             if (IsWalkable(nextGridPos))
             {
+                Debug.Log($"Moving with currentInput: {currentInput} to {nextGridPos}");
                 StartMove(nextGridPos);
                 return;
+            }
+            else
+            {
+                Debug.Log($"Cannot move with currentInput: {currentInput} to {nextGridPos} - blocked");
             }
         }
         
@@ -227,21 +250,43 @@ public class PacStudentController : MonoBehaviour
         if (gridPos.x < 0 || gridPos.x >= levelSize.x || 
             gridPos.y < 0 || gridPos.y >= levelSize.y)
         {
+            Debug.Log($"Position {gridPos} is out of bounds");
             return false;
         }
         
-        // Check level map
+        // Check level map first
         if (levelMap != null)
         {
             int tileType = levelMap[gridPos.x, gridPos.y];
-            // 0 = walkable, 1 = wall, 2 = ghost wall (special case)
-            return tileType == 0 || tileType == 2;
+            bool isWalkable = tileType == 0 || tileType == 2;
+            Debug.Log($"Level map check: {gridPos} = {tileType}, walkable: {isWalkable}");
+            return isWalkable;
         }
         
-        // Fallback to physics check
+        // Fallback to physics check - use multiple detection methods
         Vector2 worldPos = GridToWorld(gridPos);
-        Collider2D wallCollider = Physics2D.OverlapCircle(worldPos, 0.1f, wallLayerMask);
-        return wallCollider == null;
+        
+        // Method 1: Check target position
+        Collider2D hit1 = Physics2D.OverlapCircle(worldPos, collisionCheckRadius, wallLayerMask);
+        
+        // Method 2: Check midpoint between current and target
+        Vector2 currentWorldPos = GridToWorld(currentGridPos);
+        Vector2 midPoint = Vector2.Lerp(currentWorldPos, worldPos, 0.5f);
+        Collider2D hit2 = Physics2D.OverlapCircle(midPoint, collisionCheckRadius, wallLayerMask);
+        
+        // Method 3: BoxCast from current to target
+        Vector2 dir = (worldPos - currentWorldPos).normalized;
+        float dist = Vector2.Distance(currentWorldPos, worldPos);
+        RaycastHit2D hit3 = Physics2D.BoxCast(currentWorldPos, Vector2.one * collisionCheckRadius, 0f, dir, dist * 0.9f, wallLayerMask);
+        
+        bool isBlocked = hit1 != null || hit2 != null || hit3.collider != null;
+        
+        if (isBlocked)
+        {
+            Debug.Log($"Physics check blocked at {gridPos}. Hit1: {hit1}, Hit2: {hit2}, Hit3: {hit3.collider}");
+        }
+        
+        return !isBlocked;
     }
     
     bool HasPellet(Vector2Int gridPos)
@@ -340,4 +385,48 @@ public class PacStudentController : MonoBehaviour
             Destroy(other.gameObject);
         }
     }
+    
+#if UNITY_EDITOR
+    private void OnDrawGizmosSelected()
+    {
+        if (!showDebugGizmos) return;
+        
+        // Draw current grid position
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(GridToWorld(WorldToGrid(transform.position)), 0.1f);
+        
+        if (Application.isPlaying)
+        {
+            // Current grid position
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(GridToWorld(currentGridPos), 0.12f);
+            
+            // Target grid position
+            if (isMoving)
+            {
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireSphere(targetPosition, 0.12f);
+                
+                // Draw movement path
+                Gizmos.color = Color.blue;
+                Gizmos.DrawLine(transform.position, targetPosition);
+            }
+            
+            // Draw collision check radius
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(transform.position, collisionCheckRadius);
+            
+            // Draw grid lines
+            Gizmos.color = Color.white;
+            for (int x = 0; x < levelSize.x; x++)
+            {
+                for (int y = 0; y < levelSize.y; y++)
+                {
+                    Vector2 pos = GridToWorld(new Vector2Int(x, y));
+                    Gizmos.DrawWireCube(pos, Vector2.one * gridSize * 0.9f);
+                }
+            }
+        }
+    }
+#endif
 }
