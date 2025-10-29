@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 7759050692605650309}
   - component: {fileID: 6276642209467500849}
   - component: {fileID: 2006375220180431698}
-  - component: {fileID: 7093846247264136173}
   m_Layer: 0
   m_Name: Pacstudent
   m_TagString: Untagged
@@ -110,29 +109,3 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &7093846247264136173
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8343037317680713409}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b64253e0b316aad4895dab7cc5770e25, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  points:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  speed: 3
-  loop: 1
-  animator: {fileID: 0}
-  moveSfxSource: {fileID: 0}
-  moveClip: {fileID: 8300000, guid: f0a475dc40d25674a9677bfe9cfa0cfc, type: 3}
-  loopMoveSfx: 1
-  lockZ: 1
-  zLockValue: 0
-  drawPathGizmos: 1
